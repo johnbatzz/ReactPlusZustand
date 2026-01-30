@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      # Persist SQLite database
+      - app-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=file:/app/data/app.db
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+    restart: unless-stopped
+
+volumes:
+  app-data:

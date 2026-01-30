@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Teacher {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  classes   Class[]
+}
+
+model Admin {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  name      String
+  role      String     @default("super_admin")
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  auditLogs AuditLog[]
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  adminId    Int
+  admin      Admin    @relation(fields: [adminId], references: [id])
+  action     String   // CREATE, UPDATE, DELETE, ENABLE, DISABLE, LOGIN
+  entityType String   // Teacher, Student, Class, Admin
+  entityId   Int?
+  details    String?  // JSON string with additional details
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Class {
+  id           Int          @id @default(autoincrement())
+  name         String
+  section      String?
+  teacherId    Int
+  teacher      Teacher      @relation(fields: [teacherId], references: [id])
+  students     Student[]
+  gradeWeights GradeWeight?
+  quizzes      Quiz[]
+  exams        Exam[]
+  activities   Activity[]
+  createdAt    DateTime     @default(now())
+}
+
+model Student {
+  id             Int             @id @default(autoincrement())
+  studentId      String
+  name           String
+  email          String?
+  phone          String?
+  parentName     String?
+  parentPhone    String?
+  parentEmail    String?
+  classId        Int
+  password       String?
+  lastLoginAt    DateTime?
+  class          Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendances    Attendance[]
+  quizScores     QuizScore[]
+  examScores     ExamScore[]
+  activityScores ActivityScore[]
+  quizAttempts   QuizAttempt[]
+  examAttempts   ExamAttempt[]
+  answers        StudentAnswer[]
+}
+
+model GradeWeight {
+  id               Int   @id @default(autoincrement())
+  classId          Int   @unique
+  class            Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendanceWeight Float @default(10)
+  quizWeight       Float @default(30)
+  examWeight       Float @default(40)
+  activityWeight   Float @default(20)
+}
+
+model Activity {
+  id        Int             @id @default(autoincrement())
+  name      String
+  classId   Int
+  class     Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  maxScore  Float
+  date      DateTime
+  createdAt DateTime        @default(now())
+  scores    ActivityScore[]
+
+  @@index([classId])
+}
+
+model ActivityScore {
+  id         Int      @id @default(autoincrement())
+  activityId Int
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  studentId  Int
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score      Float
+
+  @@unique([activityId, studentId])
+}
+
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      DateTime
+  status    String
+
+  @@unique([studentId, date])
+}
+
+model Quiz {
+  id          Int           @id @default(autoincrement())
+  name        String
+  classId     Int
+  class       Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  maxScore    Float
+  date        DateTime
+  isPublished Boolean       @default(false)
+  dueDate     DateTime?
+  scores      QuizScore[]
+  questions   Question[]
+  attempts    QuizAttempt[]
+}
+
+model QuizScore {
+  id        Int     @id @default(autoincrement())
+  quizId    Int
+  quiz      Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score     Float
+
+  @@unique([quizId, studentId])
+}
+
+model Exam {
+  id          Int           @id @default(autoincrement())
+  name        String
+  classId     Int
+  class       Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  maxScore    Float
+  date        DateTime
+  isPublished Boolean       @default(false)
+  dueDate     DateTime?
+  scores      ExamScore[]
+  questions   Question[]
+  attempts    ExamAttempt[]
+}
+
+model ExamScore {
+  id        Int     @id @default(autoincrement())
+  examId    Int
+  exam      Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score     Float
+
+  @@unique([examId, studentId])
+}
+
+model Question {
+  id            Int             @id @default(autoincrement())
+  quizId        Int?
+  examId        Int?
+  quiz          Quiz?           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  exam          Exam?           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type          String
+  text          String
+  points        Float           @default(1)
+  order         Int             @default(0)
+  options       String?
+  correctAnswer String?
+  answers       StudentAnswer[]
+
+  @@index([quizId])
+  @@index([examId])
+}
+
+model QuizAttempt {
+  id          Int       @id @default(autoincrement())
+  quizId      Int
+  studentId   Int
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  autoScore   Float?
+  manualScore Float?
+  finalScore  Float?
+
+  @@unique([quizId, studentId])
+}
+
+model ExamAttempt {
+  id          Int       @id @default(autoincrement())
+  examId      Int
+  studentId   Int
+  exam        Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  autoScore   Float?
+  manualScore Float?
+  finalScore  Float?
+
+  @@unique([examId, studentId])
+}
+
+model StudentAnswer {
+  id           Int       @id @default(autoincrement())
+  questionId   Int
+  studentId    Int
+  question     Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answer       String
+  isCorrect    Boolean?
+  pointsEarned Float?
+  gradedAt     DateTime?
+  feedback     String?
+
+  @@unique([questionId, studentId])
+}
